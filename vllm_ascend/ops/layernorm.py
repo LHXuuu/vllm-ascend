@@ -58,6 +58,41 @@ class AddRMSNormW8A8Quant(RMSNorm):
         return x
 
 
+class AddRMSNormW8A8DynamicQuant(RMSNorm):
+    # Fuse AddRmsNorm and W8A8 dynamic quantization ops together
+
+    def __init__(
+        self,
+        hidden_size: int,
+        layer: torch.nn.Module,
+        eps: float = 1e-6,
+        var_hidden_size: Optional[int] = None,
+        has_weight: bool = True,
+        dtype: Optional[torch.dtype] = None,
+    ) -> None:
+        super().__init__(hidden_size, eps, var_hidden_size, has_weight, dtype)
+        self.layer = layer
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        residual: Optional[torch.Tensor] = None,
+    ) -> Union[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+        import torch_npu
+
+        if residual is not None:
+            x, _, residual, dynamic_scale, _ = torch_npu.npu_add_rms_norm_dynamic_quant(
+                x,
+                residual,
+                self.weight,
+                epsilon=self.variance_epsilon)
+            return (x, dynamic_scale), residual
+
+        x, residual = torch_npu.npu_rms_norm(x, self.weight,
+                                             self.variance_epsilon)
+        return x
+
+
 class AscendRMSNorm(RMSNorm):
 
     def forward_oot(

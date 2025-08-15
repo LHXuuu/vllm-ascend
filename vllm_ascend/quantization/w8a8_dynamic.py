@@ -786,7 +786,7 @@ class AscendW8A8DynamicLinearMethod:
             assert "output_dtype" in config.keys(), (
                 f"DynamicLinearMethod needs explicitly specified `output_dtype`"
                 f"for pre-quantized input, got config [{config}]")
-            output_dtype = config["output_dtype"]
+            output_dtype = config.get(["output_dtype"], layer.weight_scale.dtype)
             quantized_x, dynamic_scale = x
         pertoken_scale = (dynamic_scale
                           if config.get("pertoken_scale", True) else None)
